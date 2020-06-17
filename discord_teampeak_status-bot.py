@@ -1,6 +1,6 @@
 import os, discord, ts3, sys, logging
 
-version = "1.0.0"
+version = "1.0.1"
 developed_by = "KywoSkylake: https://github.com/petmi627"
 
 logger = logging.getLogger()
@@ -14,6 +14,10 @@ logger.addHandler(handler)
 class TeamspeakStatusClient(discord.Client):
 
     async def on_ready(self):
+        """
+        The Bot started
+        :return:
+        """
         logger.info("I started up. Beep Bop")
 
     async def on_message(self, message):
@@ -32,7 +36,7 @@ class TeamspeakStatusClient(discord.Client):
             logger.info("Message from {} in {} contains {}".format(str(message.author), message.channel, message.content))
             await message.channel.send('I was created by {}'.format(developed_by))
 
-        if "$teamspeak" in message.content:
+        if "$teamspeak" in message.content or "$ts3" in message.content:
             logger.info(
                 "Message from {} in {} contains {}".format(str(message.author), message.channel, message.content))
             msg = await message.channel.send("Fetching data, please wait")
@@ -45,7 +49,7 @@ class TeamspeakStatusClient(discord.Client):
                         )
                     except ts3.query.TS3QueryError as err:
                         logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
-                        await message.channel.send("Sorry I ran into an error")
+                        await message.channel.send(":x: Sorry I ran into an error")
 
                     ts3conn.use(sid=1)
                     if "clients" in message.content:
@@ -57,15 +61,15 @@ class TeamspeakStatusClient(discord.Client):
 
             except ts3.query.TS3QueryError:
                 logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
-                await message.channel.send("Sorry I ran into an error")
+                await message.channel.send(":x: Sorry I ran into an error")
             except ts3.query.TS3TimeoutError:
                 logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
-                await message.channel.send("The teamspeak server seems to be offline")
+                await message.channel.send(":x: The teamspeak server seems to be offline")
 
     def getServerStatus(self, ts3conn):
         resp = ts3conn.serverinfo()
         logger.info("Fetching serverinformation from the Teamspeak Server")
-        return "{} is currently online,\n{}/{} clients are currently connected.\nThe server is online since {}.".format(
+        return ":white_check_mark: {} is currently online,\n{}/{} clients are currently connected.\nThe server is online since {}.".format(
                 resp.parsed[0]['virtualserver_name'],
                 str(int(resp.parsed[0]['virtualserver_clientsonline']) - 1),
                 resp.parsed[0]['virtualserver_maxclients'],
@@ -100,16 +104,16 @@ class TeamspeakStatusClient(discord.Client):
         if days == 0 and hours == 0 and minutes == 0:
             return "now"
         elif days == 0 and hours == 0:
-            return str(minutes) + " " + self.plurify("minute", "minutes", minutes)
+            return str(minutes) + " " + self.plural("minute", "minutes", minutes)
         elif days == 0:
-            return str(hours) + " " + self.plurify("hour", "hours", hours) + " and " + str(
-                minutes) + " " + self.plurify("minute", "minutes", minutes)
+            return str(hours) + " " + self.plural("hour", "hours", hours) + " and " + str(
+                minutes) + " " + self.plural("minute", "minutes", minutes)
         else:
-            return str(days) + " " + self.plurify("day", "days", days) + ", " + str(
-                hours) + " " + self.plurify("hour", "hours", hours) + " and " + str(
-                minutes) + " " + self.plurify("minute", "minutes", minutes)
+            return str(days) + " " + self.plural("day", "days", days) + ", " + str(
+                hours) + " " + self.plural("hour", "hours", hours) + " and " + str(
+                minutes) + " " + self.plural("minute", "minutes", minutes)
 
-    def plurify(self, singluar, plural, count):
+    def plural(self, singluar, plural, count):
         if count == 1:
             return singluar
         else:
