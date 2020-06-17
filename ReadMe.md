@@ -1,4 +1,4 @@
-# Discord World Time Bot
+# Discord Teamspeak Status Bot
 
 This is a small discord bot, that checks the status of a teamspeak server.
 
