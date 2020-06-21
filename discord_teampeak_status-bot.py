@@ -19,6 +19,7 @@ class TeamspeakStatusClient(discord.Client):
         :return:
         """
         logger.info("I started up. Beep Bop")
+        await self.change_presence(activity=discord.Game(name="mention me with a message containing the word help"))
 
     async def on_message(self, message):
         if message.author == client.user:
@@ -41,29 +42,29 @@ class TeamspeakStatusClient(discord.Client):
             if self.startsWith(message_received, ['teamspeak', 'teamspeak3', 'ts3']):
                 msg = await message.channel.send("Fetching data, please wait")
                 try:
-                    ts3conn = self.connectToTeamspeak(os.environ['ts3_host'], os.environ['ts3_port'],
-                                                      os.environ['ts3_username'], os.environ['ts3_password'])
-                    if "clients" in message.content:
-                        await message.channel.send(self.getClientlist(ts3conn))
-                    else:
-                        await message.channel.send(self.getServerStatus(ts3conn))
-                    await msg.delete()
+                    with ts3.query.TS3Connection(os.environ['ts3_host'], port=os.environ['ts3_port']) as ts3conn:
+                        try:
+                            ts3conn.login(
+                                client_login_name=os.environ['ts3_username'],
+                                client_login_password=os.environ['ts3_password']
+                            )
+                        except ts3.query.TS3QueryError as err:
+                            logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
+                            await message.channel.send(":x: Sorry I ran into an error")
+
+                        if "clients" in message.content:
+                            await message.channel.send(self.getClientlist(ts3conn))
+                        else:
+                            await message.channel.send(self.getServerStatus(ts3conn))
+                        await msg.delete()
                 except ts3.query.TS3QueryError as err:
                     logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
+                    await msg.delete()
                     await message.channel.send(":x: Sorry I ran into an error")
                 except ts3.query.TS3TimeoutError as err:
                     logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
+                    await msg.delete()
                     await message.channel.send(":x: The teamspeak server seems to be offline")
-
-    def connectToTeamspeak(self, host, port, user, password):
-        with ts3.query.TS3Connection(host, port=port) as ts3conn:
-            ts3conn.login(
-                client_login_name=user,
-                client_login_password=password
-            )
-
-            ts3conn.use(sid=1)
-            return ts3conn
 
     def getServerStatus(self, ts3conn):
         resp = ts3conn.serverinfo()
