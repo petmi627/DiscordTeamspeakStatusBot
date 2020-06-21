@@ -1,6 +1,6 @@
 import os, discord, ts3, sys, logging
 
-version = "1.0.1"
+version = "1.0.2"
 developed_by = "KywoSkylake: https://github.com/petmi627"
 
 logger = logging.getLogger()
@@ -24,47 +24,46 @@ class TeamspeakStatusClient(discord.Client):
         if message.author == client.user:
             return
 
-        if "help" in message.content and client.user in message.mentions:
-            logger.info("Message from {} in {} contains {}".format(str(message.author), message.channel, message.content))
-            await message.channel.send('Type "$teamspeak" to get the status of the Teamspeak Server\n'
-                                       'Type "$teamspeak clients" to view the clients connected')
-        if "version" in message.content and client.user in message.mentions:
-            logger.info("Message from {} in {} contains {}".format(str(message.author), message.channel, message.content))
-            await message.channel.send('The bot version is {}'.format(version))
-        if ("creator" in message.content or "master" in message.content or "developer" in message.content) \
-                and client.user in message.mentions:
-            logger.info("Message from {} in {} contains {}".format(str(message.author), message.channel, message.content))
-            await message.channel.send('I was created by {}'.format(developed_by))
+        if client.user in message.mentions:
+            self.logUserMessage(message)
+            if "help" in message.content.lower():
+                await message.channel.send('Type `$teamspeak` or `$ts3` to get the status of the Teamspeak Server\n'
+                                       'Type `$teamspeak clients` or `$ts3 clients` to view the clients connected')
+            if "version" in message.content.lower():
+                await message.channel.send('The bot version is {}'.format(version))
+            if "creator" in message.content.lower() or "master" in message.content.lower() \
+                    or "developer" in message.content.lower() or "created" in message.content.lower():
+                await message.channel.send('I was created by my master {}'.format(developed_by))
 
-        if "$teamspeak" in message.content or "$ts3" in message.content:
-            logger.info(
-                "Message from {} in {} contains {}".format(str(message.author), message.channel, message.content))
-            msg = await message.channel.send("Fetching data, please wait")
-            try:
-                with ts3.query.TS3Connection(os.environ['ts3_host'], port=os.environ['ts3_port']) as ts3conn:
-                    try:
-                        ts3conn.login(
-                            client_login_name=os.environ['ts3_username'],
-                            client_login_password=os.environ['ts3_password']
-                        )
-                    except ts3.query.TS3QueryError as err:
-                        logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
-                        await message.channel.send(":x: Sorry I ran into an error")
-
-                    ts3conn.use(sid=1)
+        if self.startsWith(message.content.lower(), ["$", "?", "!", "/"]):
+            self.logUserMessage(message)
+            message_received = message.content.lower()[1:]
+            if self.startsWith(message_received, ['teamspeak', 'teamspeak3', 'ts3']):
+                msg = await message.channel.send("Fetching data, please wait")
+                try:
+                    ts3conn = self.connectToTeamspeak(os.environ['ts3_host'], os.environ['ts3_port'],
+                                                      os.environ['ts3_username'], os.environ['ts3_password'])
                     if "clients" in message.content:
                         await message.channel.send(self.getClientlist(ts3conn))
                     else:
                         await message.channel.send(self.getServerStatus(ts3conn))
-
                     await msg.delete()
+                except ts3.query.TS3QueryError as err:
+                    logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
+                    await message.channel.send(":x: Sorry I ran into an error")
+                except ts3.query.TS3TimeoutError as err:
+                    logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
+                    await message.channel.send(":x: The teamspeak server seems to be offline")
 
-            except ts3.query.TS3QueryError:
-                logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
-                await message.channel.send(":x: Sorry I ran into an error")
-            except ts3.query.TS3TimeoutError:
-                logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
-                await message.channel.send(":x: The teamspeak server seems to be offline")
+    def connectToTeamspeak(self, host, port, user, password):
+        with ts3.query.TS3Connection(host, port=port) as ts3conn:
+            ts3conn.login(
+                client_login_name=user,
+                client_login_password=password
+            )
+
+            ts3conn.use(sid=1)
+            return ts3conn
 
     def getServerStatus(self, ts3conn):
         resp = ts3conn.serverinfo()
@@ -83,12 +82,15 @@ class TeamspeakStatusClient(discord.Client):
         msg = "{}/{} clients are currently connected\n\n".format(
             str(int(resp_serverinfo.parsed[0]['virtualserver_clientsonline']) - 1),
             resp_serverinfo.parsed[0]['virtualserver_maxclients'])
-        msg += "Here is the client list\n"
+        if len(resp_clientlist) > 0:
+            msg += "```python\n"
         index = 1
         for client in resp_clientlist:
             if int(client["client_type"]) == 0:
-                msg += "#{} - {}\n".format(str(index), client["client_nickname"])
+                msg += "#{} - \"{}\"\n".format(str(index), client["client_nickname"])
                 index += 1
+            if len(resp_clientlist) == index - 1:
+                msg += "```"
 
         return msg
 
@@ -118,6 +120,16 @@ class TeamspeakStatusClient(discord.Client):
             return singluar
         else:
             return plural
+
+    def logUserMessage(self, message):
+        logger.info(
+            "Message from {} in {} contains {}".format(str(message.author), message.channel, message.content))
+
+    def startsWith(self, message, list):
+        for item in list:
+            if str(message).startswith(item):
+                return True
+        return False
 
 if '__main__' == __name__:
     client = TeamspeakStatusClient()
