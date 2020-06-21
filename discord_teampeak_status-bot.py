@@ -52,6 +52,7 @@ class TeamspeakStatusClient(discord.Client):
                             logger.error("Login failed: {}".format(err.resp.error["msg"]), exc_info=True)
                             await message.channel.send(":x: Sorry I ran into an error")
 
+                        ts3conn.use(sid=1)
                         if "clients" in message.content:
                             await message.channel.send(self.getClientlist(ts3conn))
                         else:
