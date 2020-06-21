@@ -91,7 +91,7 @@ class TeamspeakStatusClient(discord.Client):
             if int(client["client_type"]) == 0:
                 msg += "#{} - \"{}\"\n".format(str(index), client["client_nickname"])
                 index += 1
-            if len(resp_clientlist) == index - 2:
+            if len(resp_clientlist) == index:
                 msg += "```"
 
         return msg
