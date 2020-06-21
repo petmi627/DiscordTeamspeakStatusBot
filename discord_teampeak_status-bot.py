@@ -81,7 +81,7 @@ class TeamspeakStatusClient(discord.Client):
         resp_serverinfo = ts3conn.serverinfo()
 
         logger.info("Fetching serverinformation and clientlist from the Teamspeak Server")
-        msg = "{}/{} clients are currently connected\n\n".format(
+        msg = "{}/{} clients are currently connected\n".format(
             str(int(resp_serverinfo.parsed[0]['virtualserver_clientsonline']) - 1),
             resp_serverinfo.parsed[0]['virtualserver_maxclients'])
         if len(resp_clientlist) > 0:
@@ -89,7 +89,7 @@ class TeamspeakStatusClient(discord.Client):
         index = 1
         for client in resp_clientlist:
             if int(client["client_type"]) == 0:
-                msg += "#{} - \"{}\"\n".format(str(index), client["client_nickname"])
+                msg += "Nr. {} - \"{}\"\n".format(str(index), client["client_nickname"])
                 index += 1
             if len(resp_clientlist) == index:
                 msg += "```"
